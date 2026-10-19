@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Анимация онлайн</title>
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a1a;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        #ui {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0b7dda;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button id="playPauseBtn">Пауза</button>
+    </div>
+
+    <!-- Подключаем библиотеку Three.js через интернет -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // Создаем сцену, камеру и рендерер
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Управление мышкой (вращение, приближение)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        camera.position.set(0, 2, 5);
+        controls.update();
+
+        // Освещение
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        let mixer;
+        let isPlaying = true;
+        const clock = new THREE.Clock();
+
+        // Загрузка модели
+        const loader = new GLTFLoader();
+        loader.load('model.glb', (gltf) => {
+            scene.add(gltf.scene);
+
+            // Если в модели есть анимация, запускаем ее
+            if (gltf.animations.length > 0) {
+                mixer = new THREE.AnimationMixer(gltf.scene);
+                const action = mixer.clipAction(gltf.animations[0]);
+                action.play();
+            }
+        }, undefined, (error) => {
+            console.error('Ошибка загрузки модели:', error);
+        });
+
+        // Кнопка паузы и воспроизведения
+        const btn = document.getElementById('playPauseBtn');
+        btn.addEventListener('click', () => {
+            if (!mixer) return;
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                mixer.timeScale = 1;
+                btn.textContent = 'Пауза';
+            } else {
+                mixer.timeScale = 0;
+                btn.textContent = 'Воспроизведение';
+            }
+        });
+
+        // Анимационный цикл
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            if (mixer) mixer.update(delta);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Адаптация под размер экрана
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
